@@ -27,8 +27,8 @@ marítimos, y pesca deportiva.
 
 1. ## Clonar el repositorio: ## 
 ```bash
-git clone https://github.com/usuario/proyecto-sentimiento.git
-cd proyecto-sentimiento
+git clone https://github.com/Vanessaa-lo/tours_sentimiento.git
+cd tours_sentimiento
 ```
 
 2. ## Crear entorno virtual: ##

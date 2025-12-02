@@ -1,0 +1,123 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.panel {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ddd;
+  font-size: 0.95rem;
+}
+
+button#btn-analizar {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  background: #2563eb;
+  color: #fff;
+}
+
+button#btn-analizar:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.resultado {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Colores por sentimiento */
+.resultado-positivo {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.resultado-negativo {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.resultado-neutral {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.resultado-error {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Historial */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-item {
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 0.88rem;
+}
+
+.hist-positivo {
+  border-left: 4px solid #22c55e;
+}
+
+.hist-negativo {
+  border-left: 4px solid #ef4444;
+}
+
+.hist-neutral {
+  border-left: 4px solid #3b82f6;
+}
+
+.history-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+}
+
+.history-sentiment {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.history-prob {
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.history-time {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.history-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+

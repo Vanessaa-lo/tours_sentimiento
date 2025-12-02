@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Análisis de Sentimiento - Tours PV</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Análisis de sentimientos - Tours PV</h1>
+
+    <!-- Formulario para escribir reseña -->
+    <section class="panel">
+      <h2>Escribe tu reseña</h2>
+      <form id="review-form">
+        <textarea
+          id="texto"
+          rows="4"
+          placeholder="Escribe aquí tu opinión sobre el tour..."
+          required
+        ></textarea>
+
+        <button type="submit" id="btn-analizar">Enviar</button>
+      </form>
+
+      <!-- Resultado actual -->
+      <div id="resultado" class="resultado">
+        <!-- Aquí se mostrará el último resultado -->
+      </div>
+    </section>
+
+    <!-- Historial de reseñas analizadas en esta sesión -->
+    <section class="panel">
+      <h2>Historial de reseñas</h2>
+      <div id="history-list" class="history-list">
+        <!-- Aquí se irán agregando las reseñas analizadas -->
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

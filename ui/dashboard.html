@@ -1,0 +1,65 @@
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Reseñas</title>
+
+  <!-- 🌈 Estilos del dashboard -->
+  <link rel="stylesheet" href="/ui/styles.css">
+
+  <!-- 📊 Lógica del dashboard -->
+  <script src="/ui/dashboard.js" defer></script>
+</head>
+
+<body>
+  <main class="dashboard-container">
+    <header class="dashboard-header">
+      <h1>📊 Dashboard de Sentimientos</h1>
+      <a href="/" class="link-volver">← Volver al analizador</a>
+    </header>
+
+    <!-- Tarjetas de stats -->
+    <section id="stats-panel" class="stats-panel">
+      <h2>Resumen general</h2>
+      <div class="stats-grid">
+        <div class="stat-card stat-total">
+          <span class="stat-label">Total reseñas</span>
+          <span class="stat-value" id="stat-total">0</span>
+        </div>
+
+        <div class="stat-card stat-pos">
+          <span class="stat-label">Positivas</span>
+          <span class="stat-value" id="stat-pos">0</span>
+          <span class="stat-sub" id="stat-pos-pct">0%</span>
+        </div>
+
+        <div class="stat-card stat-neu">
+          <span class="stat-label">Neutrales</span>
+          <span class="stat-value" id="stat-neu">0</span>
+          <span class="stat-sub" id="stat-neu-pct">0%</span>
+        </div>
+
+        <div class="stat-card stat-neg">
+          <span class="stat-label">Negativas</span>
+          <span class="stat-value" id="stat-neg">0</span>
+          <span class="stat-sub" id="stat-neg-pct">0%</span>
+        </div>
+      </div>
+
+      <p class="stats-updated">
+        Última actualización: <span id="stats-updated">—</span>
+      </p>
+    </section>
+
+    <!-- Gráfica de dona -->
+    <section class="chart-section">
+      <h2>Distribución de sentimientos</h2>
+      <div class="chart-wrapper">
+        <canvas id="sentimentChart"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- Nuestro JS del dashboard -->
+  <script src="/ui/dashboard.js"></script>
+</body>
+</html>

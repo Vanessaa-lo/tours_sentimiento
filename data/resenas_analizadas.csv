@@ -12,7 +12,6 @@ timestamp,texto,sentimiento,probabilidad
 2025-11-28T06:30:51,"fue regular, ni bien ni mal pudo ser mejor",neutral,0.4338
 2025-11-28T06:37:48,"fue regular, ni bien ni mal pudo ser mejor",neutral,0.4338
 2025-11-28T06:38:13,la comida estaba deliciosa y me encanto la vista,positivo,0.4279
-
 2025-11-28T07:09:47,estuvo regular,neutral,0.5595
 2025-12-02T02:00:25,"HUELE A MOHO EL BAÑO Y PARECE QUE LLUEVE A CANTAROS EN EL CABAROTE, HACE FALTA MANTENIMIENTO EN LA PROA",negativo,0.4490
 2025-12-02T02:01:05,HORRIBLE,negativo,0.3957
@@ -23,3 +22,13 @@ timestamp,texto,sentimiento,probabilidad
 2025-12-02T02:02:59,NO ME GUSTÓ EL TRATO CON EL CLIENTE DEL VENDEDOR,negativo,0.5643
 2025-12-02T02:03:19,"NO ME GUSTÓ, ME ENCANTÓ!",positivo,0.5322
 2025-12-02T02:15:33,hay muchas arañas,negativo,0.4112
+2025-12-02T02:33:44,"fue muy divertido el viaje, me encanto",positivo,0.7310
+2025-12-02T02:40:43,habia un monton de insectos fue horrible,neutral,0.3750
+2025-12-03T01:15:55,muy mal,negativo,0.4941
+2025-12-03T01:57:10,"fue horrible, no me gusto",negativo,0.5435
+2025-12-03T02:10:25,estuvo bien,neutral,0.6583
+2025-12-03T02:10:48,"estuvo bien, pero la mesera fue grosera",neutral,0.7272
+2025-12-03T02:11:00,la mesera fue grosera,positivo,0.4970
+2025-12-03T02:11:12,"la mesera fue grosera, no me gusto",negativo,0.4255
+2025-12-03T02:12:16,fue muy incomodo el viaje,positivo,0.4808
+2025-12-03T02:12:40,"me trataron mal lños meseros, fueron groseros",negativo,0.4295

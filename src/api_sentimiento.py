@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Tuple, List
+from typing import Any, Tuple, List, Optional
+from collections import Counter
 
 from datetime import datetime
 import csv
@@ -70,6 +71,16 @@ class Resena(BaseModel):
     texto: str
     sentimiento: str
     probabilidad: float
+
+class StatsResponse(BaseModel):
+    total: int
+    positivos: int
+    neutrales: int
+    negativos: int
+    porc_positivos: float
+    porc_neutrales: float
+    porc_negativos: float
+    ultima_actualizacion: Optional[datetime]
 
 
 class HealthResponse(BaseModel):
@@ -234,6 +245,32 @@ def analizar_sentimiento(payload: SentimentRequest) -> SentimentResponse:
     response_model=List[Resena],
     summary="Obtener historial de reseñas analizadas",
 )
+
+@app.get(
+    "/stats",
+    response_model=StatsResponse,
+    summary="Estadísticas globales de reseñas",
+)
+def obtener_stats() -> StatsResponse:
+    """
+    Devuelve estadísticas básicas del sentimiento de las reseñas almacenadas.
+    """
+    try:
+        return calcular_estadisticas()
+    except Exception as exc:
+        print(f"[WARN] No se pudieron calcular las estadísticas: {exc}")
+        return StatsResponse(
+            total=0,
+            positivos=0,
+            neutrales=0,
+            negativos=0,
+            porc_positivos=0.0,
+            porc_neutrales=0.0,
+            porc_negativos=0.0,
+            ultima_actualizacion=None,
+        )
+
+
 def obtener_resenas(limit: int = 50) -> List[Resena]:
     """
     Devuelve las últimas 'limit' reseñas analizadas guardadas en CSV.
@@ -307,3 +344,82 @@ def leer_resenas(limit: int = 50) -> List[Resena]:
     # Ordenar por fecha descendente (más recientes primero)
     resenas.sort(key=lambda r: r.timestamp, reverse=True)
     return resenas[:limit]
+
+def calcular_estadisticas() -> StatsResponse:
+    """Calcula estadísticas simples a partir del CSV de reseñas."""
+    if not RUTA_RESENAS.exists():
+        return StatsResponse(
+            total=0,
+            positivos=0,
+            neutrales=0,
+            negativos=0,
+            porc_positivos=0.0,
+            porc_neutrales=0.0,
+            porc_negativos=0.0,
+            ultima_actualizacion=None,
+        )
+
+    sentimientos = []
+    timestamps = []
+
+    with RUTA_RESENAS.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            # Esperamos: timestamp, texto, sentimiento, prob
+            if len(row) != 4:
+                continue
+
+            ts_str, _texto, sentimiento, _prob_str = row
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except Exception:
+                continue
+
+            sentimientos.append(sentimiento.strip().lower())
+            timestamps.append(ts)
+
+    total = len(sentimientos)
+    if total == 0:
+        return StatsResponse(
+            total=0,
+            positivos=0,
+            neutrales=0,
+            negativos=0,
+            porc_positivos=0.0,
+            porc_neutrales=0.0,
+            porc_negativos=0.0,
+            ultima_actualizacion=None,
+        )
+
+    conteo = Counter(sentimientos)
+    pos = conteo.get("positivo", 0)
+    neu = conteo.get("neutral", 0)
+    neg = conteo.get("negativo", 0)
+
+    porc_pos = (pos / total) * 100
+    porc_neu = (neu / total) * 100
+    porc_neg = (neg / total) * 100
+
+    ultima_act = max(timestamps) if timestamps else None
+
+    return StatsResponse(
+        total=total,
+        positivos=pos,
+        neutrales=neu,
+        negativos=neg,
+        porc_positivos=round(porc_pos, 2),
+        porc_neutrales=round(porc_neu, 2),
+        porc_negativos=round(porc_neg, 2),
+        ultima_actualizacion=ultima_act,
+    )
+
+
+from fastapi.responses import FileResponse
+
+@app.get("/dashboard", summary="Dashboard de estadísticas")
+def dashboard():
+    dashboard_path = UI_DIR / "dashboard.html"
+    if not dashboard_path.exists():
+        raise HTTPException(404, "Dashboard no encontrado")
+    return FileResponse(dashboard_path)
+

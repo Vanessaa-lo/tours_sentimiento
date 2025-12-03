@@ -57,6 +57,8 @@ Acceso:
 
 👉 http://127.0.0.1:8000/ui
 
+http://127.0.0.1:8000/dashboard
+
 Permite ingresar comentarios y visualizar el sentimiento predicho por el modelo.
 
 tours_sentimiento/

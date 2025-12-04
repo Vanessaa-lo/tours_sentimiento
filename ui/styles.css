@@ -288,12 +288,53 @@ a {
     color: #666;
 }
 
-/* Gráfica */
-#chart-container {
-    margin-top: 30px;
-    padding: 20px;
-    background: white;
-    border-radius: 14px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-    width: 450px;
+/* ================================
+   GRÁFICAS DEL DASHBOARD
+=================================== */
+
+/* Sección de gráficas */
+.charts-section {
+  margin-top: 30px;
+}
+
+/* Grid de tarjetas de gráficas */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Tarjeta individual de gráfica */
+.chart-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+
+  /* 🔹 Altura controlada para que no empuje todo hacia abajo */
+  height: 320px;
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* Título dentro de la tarjeta */
+.chart-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #444;
+}
+
+/* Contenedor del canvas (lo usas en la tercera tarjeta) */
+.chart-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+/* Canvas de la gráfica (dona + tendencias) */
+.chart-card > canvas,
+.chart-wrapper canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }

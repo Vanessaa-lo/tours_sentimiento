@@ -1,25 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard de Reseñas</title>
+  <title>Dashboard de Sentimientos</title>
 
-  <!-- 🌈 Estilos del dashboard -->
-  <link rel="stylesheet" href="/ui/styles.css">
+  <link rel="stylesheet" href="/ui/styles.css" />
 
-  <!-- 📊 Lógica del dashboard -->
-  <script src="/ui/dashboard.js" defer></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body>
+<body class="dashboard">
   <main class="dashboard-container">
     <header class="dashboard-header">
       <h1>📊 Dashboard de Sentimientos</h1>
       <a href="/" class="link-volver">← Volver al analizador</a>
     </header>
 
-    <!-- Tarjetas de stats -->
+    <!-- RESUMEN GENERAL -->
     <section id="stats-panel" class="stats-panel">
-      <h2>Resumen general</h2>
+      <div class="stats-panel-header">
+        <h2>Resumen general</h2>
+        <a href="/descargar_resenas" class="btn-export" download>
+          ⬇️ Descargar reseñas (CSV)
+        </a>
+      </div>
+
       <div class="stats-grid">
         <div class="stat-card stat-total">
           <span class="stat-label">Total reseñas</span>
@@ -50,16 +57,218 @@
       </p>
     </section>
 
-    <!-- Gráfica de dona -->
-    <section class="chart-section">
+    <!-- GRÁFICAS -->
+    <section class="charts-section">
       <h2>Distribución de sentimientos</h2>
-      <div class="chart-wrapper">
-        <canvas id="sentimentChart"></canvas>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Dona de sentimientos</h3>
+          <canvas id="sentimentDonut"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Tendencia por día</h3>
+          <canvas id="trendChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Total por dia</h3>
+          <div class="chart-wrapper">
+            <canvas id="sentimentTrendChart"></canvas>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <!-- Nuestro JS del dashboard -->
-  <script src="/ui/dashboard.js"></script>
-</body>
-</html>
+  <!-- SCRIPT INLINE DEL DASHBOARD -->
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      console.log("✅ Script inline del dashboard ejecutado");
+
+      // 1) Actualizar tarjetas con /stats
+      try {
+        const resp = await fetch("/stats");
+        if (!resp.ok) {
+          console.warn("No se pudo cargar /stats");
+        } else {
+          const stats = await resp.json();
+          console.log("📊 Stats recibidos:", stats);
+
+          const elTotal = document.getElementById("stat-total");
+          const elPos = document.getElementById("stat-pos");
+          const elNeu = document.getElementById("stat-neu");
+          const elNeg = document.getElementById("stat-neg");
+
+          const elPosPct = document.getElementById("stat-pos-pct");
+          const elNeuPct = document.getElementById("stat-neu-pct");
+          const elNegPct = document.getElementById("stat-neg-pct");
+
+          const elUpdated = document.getElementById("stats-updated");
+
+          elTotal.textContent = stats.total ?? 0;
+          elPos.textContent = stats.positivos ?? 0;
+          elNeu.textContent = stats.neutrales ?? 0;
+          elNeg.textContent = stats.negativos ?? 0;
+
+          elPosPct.textContent = (stats.porc_positivos ?? 0).toFixed(2) + "%";
+          elNeuPct.textContent = (stats.porc_neutrales ?? 0).toFixed(2) + "%";
+          elNegPct.textContent = (stats.porc_negativos ?? 0).toFixed(2) + "%";
+
+          if (stats.ultima_actualizacion) {
+            const fecha = new Date(stats.ultima_actualizacion).toLocaleString("es-MX", {
+              dateStyle: "short",
+              timeStyle: "short",
+            });
+            elUpdated.textContent = fecha;
+          }
+        }
+      } catch (e) {
+        console.error("❌ Error al pedir /stats:", e);
+      }
+
+      // 2) Gráfica de dona
+      const canvas = document.getElementById("sentimentDonut");
+      if (!canvas) {
+        console.error("❌ No encontré el canvas #sentimentDonut");
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        console.error("❌ No se pudo obtener el contexto 2D del canvas");
+        return;
+      }
+
+      // Usa los valores reales de las tarjetas (por si /stats respondió)
+      const pos = parseInt(document.getElementById("stat-pos").textContent) || 0;
+      const neu = parseInt(document.getElementById("stat-neu").textContent) || 0;
+      const neg = parseInt(document.getElementById("stat-neg").textContent) || 0;
+
+      const dataValuesReal = [pos, neu, neg];
+      const totalReal = dataValuesReal.reduce((a, b) => a + b, 0);
+
+      console.log("📈 Valores para la dona:", dataValuesReal, "total =", totalReal);
+
+      const dataValues = totalReal === 0 ? [1, 1, 1] : dataValuesReal;
+
+      const labels = ["Positivas", "Neutrales", "Negativas"];
+
+      const backgroundColors = [
+        "rgba(74, 222, 128, 0.7)",
+        "rgba(129, 140, 248, 0.7)",
+        "rgba(248, 113, 113, 0.7)",
+      ];
+
+      const borderColors = [
+        "rgba(34, 197, 94, 1)",
+        "rgba(79, 70, 229, 1)",
+        "rgba(239, 68, 68, 1)",
+      ];
+
+      try {
+        const donutChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels,
+            datasets: [
+              {
+                data: dataValues,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: 1,
+                hoverOffset: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "60%",
+          },
+        });
+
+        console.log("✅ Gráfica de dona creada:", donutChart);
+      } catch (err) {
+        console.error("❌ Error creando la gráfica de dona:", err);
+      }
+
+      // ====== 3) Datos de ejemplo por día (luego los puedes traer del backend) ======
+      const dias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+      const posPorDia = [3, 4, 5, 6, 5, 7, 4];
+      const neuPorDia = [2, 1, 3, 2, 2, 1, 2];
+      const negPorDia = [1, 2, 1, 0, 1, 2, 1];
+
+      // ====== 4) Gráfica de tendencia con POS / NEU / NEG (trendChart) ======
+      const trendCanvas = document.getElementById("trendChart");
+      if (trendCanvas) {
+        const trendCtx = trendCanvas.getContext("2d");
+
+new Chart(trendCtx, {
+  type: "line",
+  data: {
+    labels: dias,
+    datasets: [
+      {
+        label: "Positivas",
+        data: posPorDia,
+        borderWidth: 2,
+        tension: 0.3,
+        borderColor: "rgba(74, 222, 128, 1)",     // VERDE
+        backgroundColor: "rgba(74, 222, 128, 0.3)"
+      },
+      {
+        label: "Neutrales",
+        data: neuPorDia,
+        borderWidth: 2,
+        tension: 0.3,
+        borderColor: "rgba(129, 140, 248, 1)",    // LILA
+        backgroundColor: "rgba(129, 140, 248, 0.3)"
+      },
+      {
+        label: "Negativas",
+        data: negPorDia,
+        borderWidth: 2,
+        tension: 0.3,
+        borderColor: "rgba(248, 113, 113, 1)",    // ROJO
+        backgroundColor: "rgba(248, 113, 113, 0.3)"
+      },
+    ],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+  },
+});
+
+      }
+
+      // ====== 5) Gráfica diferente: total de reseñas por día (sentimentTrendChart) ======
+      const trend2Canvas = document.getElementById("sentimentTrendChart");
+      if (trend2Canvas) {
+        const trend2Ctx = trend2Canvas.getContext("2d");
+
+        const totalPorDia = dias.map((_, i) => posPorDia[i] + neuPorDia[i] + negPorDia[i]);
+
+        new Chart(trend2Ctx, {
+          type: "bar",
+          data: {
+            labels: dias,
+            datasets: [
+              {
+                label: "Total de reseñas por día",
+                data: totalPorDia,
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+          },
+        });
+      }
+    });
+  </script>

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Tuple, List, Optional
 from collections import Counter
 
-from datetime import datetime
+from datetime import datetime, date
 import csv
 
 
@@ -81,6 +81,15 @@ class StatsResponse(BaseModel):
     porc_neutrales: float
     porc_negativos: float
     ultima_actualizacion: Optional[datetime]
+    
+class StatsSerieDia(BaseModel):
+    fecha: date
+    positivos: int
+    neutrales: int
+    negativos: int
+    total: int
+
+
 
 
 class HealthResponse(BaseModel):
@@ -88,6 +97,11 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     vectorizer_loaded: bool
+
+    # 🔧 Esto le dice a Pydantic que no trate "model_" como reservado
+    model_config = {
+        "protected_namespaces": (),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -245,6 +259,16 @@ def analizar_sentimiento(payload: SentimentRequest) -> SentimentResponse:
     response_model=List[Resena],
     summary="Obtener historial de reseñas analizadas",
 )
+def obtener_resenas(limit: int = 50) -> List[Resena]:
+    """
+    Devuelve las últimas 'limit' reseñas analizadas guardadas en CSV.
+    """
+    try:
+        return leer_resenas(limit=limit)
+    except Exception as exc:
+        print(f"[WARN] No se pudo leer el historial de reseñas: {exc}")
+        return []
+    
 
 @app.get(
     "/stats",
@@ -270,17 +294,69 @@ def obtener_stats() -> StatsResponse:
             ultima_actualizacion=None,
         )
 
-
-def obtener_resenas(limit: int = 50) -> List[Resena]:
-    """
-    Devuelve las últimas 'limit' reseñas analizadas guardadas en CSV.
-    """
+@app.get(
+    "/stats_series",
+    response_model=List[StatsSerieDia],
+    summary="Serie temporal de reseñas por día",
+)
+def obtener_stats_series() -> List[StatsSerieDia]:
+    """Devuelve la serie temporal de reseñas agregadas por día."""
     try:
-        return leer_resenas(limit=limit)
+        return calcular_serie_diaria()
     except Exception as exc:
-        print(f"[WARN] No se pudo leer el historial de reseñas: {exc}")
+        print(f"[WARN] No se pudo calcular la serie diaria: {exc}")
         return []
-    
+
+        
+def calcular_serie_diaria() -> List[StatsSerieDia]:
+    """Agrupa las reseñas por día y cuenta sentimientos."""
+    if not RUTA_RESENAS.exists():
+        return []
+
+    datos_por_dia: dict[date, Counter] = {}
+
+    with RUTA_RESENAS.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            # Esperamos: timestamp, texto, sentimiento, prob
+            if len(row) != 4:
+                continue
+
+            ts_str, _texto, sentimiento, _prob_str = row
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except Exception:
+                continue
+
+            dia = ts.date()
+            sentimiento_norm = sentimiento.strip().lower()
+
+            if dia not in datos_por_dia:
+                datos_por_dia[dia] = Counter()
+
+            datos_por_dia[dia][sentimiento_norm] += 1
+
+    serie: List[StatsSerieDia] = []
+    for dia in sorted(datos_por_dia.keys()):
+        c = datos_por_dia[dia]
+        pos = c.get("positivo", 0)
+        neu = c.get("neutral", 0)
+        neg = c.get("negativo", 0)
+        total = pos + neu + neg
+
+        serie.append(
+            StatsSerieDia(
+                fecha=dia,
+                positivos=pos,
+                neutrales=neu,
+                negativos=neg,
+                total=total,
+            )
+        )
+
+    return serie
+
+
 # ---------------------------------------------------------------------------
 #  Funciones auxiliares     
 # ---------------------------------------------------------------------------
@@ -423,3 +499,16 @@ def dashboard():
         raise HTTPException(404, "Dashboard no encontrado")
     return FileResponse(dashboard_path)
 
+@app.get("/descargar_resenas", summary="Descargar todas las reseñas como CSV")
+def descargar_resenas():
+    if not RUTA_RESENAS.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="No hay reseñas registradas aún.",
+        )
+
+    return FileResponse(
+        path=RUTA_RESENAS,
+        media_type="text/csv",
+        filename="resenas_tours_pv.csv",
+    )

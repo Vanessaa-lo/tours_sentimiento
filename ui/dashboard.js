@@ -1,6 +1,7 @@
 let sentimentChartInstance = null;
 
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("✅ dashboard.js cargado");
   cargarEstadisticas();
 });
 
@@ -22,11 +23,12 @@ async function cargarEstadisticas() {
   try {
     const resp = await fetch("/stats");
     if (!resp.ok) {
-      console.warn("No se pudieron cargar estadísticas");
+      console.warn("No se pudieron cargar estadísticas /stats");
       return;
     }
 
     const stats = await resp.json();
+    console.log("📊 Stats recibidos desde /stats:", stats);
 
     // Actualizar tarjetas numéricas
     elTotal.textContent = stats.total ?? 0;
@@ -34,9 +36,9 @@ async function cargarEstadisticas() {
     elNeu.textContent = stats.neutrales ?? 0;
     elNeg.textContent = stats.negativos ?? 0;
 
-    elPosPct.textContent = ((stats.porc_positivos ?? 0)).toFixed(2) + "%";
-    elNeuPct.textContent = ((stats.porc_neutrales ?? 0)).toFixed(2) + "%";
-    elNegPct.textContent = ((stats.porc_negativos ?? 0)).toFixed(2) + "%";
+    elPosPct.textContent = (stats.porc_positivos ?? 0).toFixed(2) + "%";
+    elNeuPct.textContent = (stats.porc_neutrales ?? 0).toFixed(2) + "%";
+    elNegPct.textContent = (stats.porc_negativos ?? 0).toFixed(2) + "%";
 
     if (stats.ultima_actualizacion) {
       const fecha = new Date(stats.ultima_actualizacion).toLocaleString("es-MX", {
@@ -51,7 +53,7 @@ async function cargarEstadisticas() {
     // Actualizar / crear gráfica
     renderSentimentChart(stats);
   } catch (err) {
-    console.error("Error al cargar estadísticas:", err);
+    console.error("❌ Error al cargar estadísticas:", err);
   }
 }
 
@@ -59,24 +61,29 @@ async function cargarEstadisticas() {
  * Crea o actualiza la gráfica de dona con Chart.js
  */
 function renderSentimentChart(stats) {
-  const ctx = document.getElementById("sentimentChart");
-  if (!ctx) return;
+  const canvas = document.getElementById("sentimentDonut");
+  if (!canvas) {
+    console.error("❌ No se encontró el canvas #sentimentDonut");
+    return;
+  }
 
-  const dataValues = [
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("❌ No se pudo obtener el contexto 2D del canvas");
+    return;
+  }
+
+  const dataValuesReal = [
     stats.positivos ?? 0,
     stats.neutrales ?? 0,
     stats.negativos ?? 0,
   ];
 
-  const total = dataValues.reduce((a, b) => a + b, 0);
-  if (total === 0) {
-    // Si no hay datos, mejor no mostramos nada raro
-    if (sentimentChartInstance) {
-      sentimentChartInstance.destroy();
-      sentimentChartInstance = null;
-    }
-    return;
-  }
+  const totalReal = dataValuesReal.reduce((a, b) => a + b, 0);
+  console.log("📈 Valores reales para la dona:", dataValuesReal, "total =", totalReal);
+
+  // Si no hay datos reales, pintamos una dona “dummy” para que al menos se vea algo
+  const dataValues = totalReal === 0 ? [1, 1, 1] : dataValuesReal;
 
   const labels = ["Positivas", "Neutrales", "Negativas"];
 
@@ -107,7 +114,7 @@ function renderSentimentChart(stats) {
       datasets: [
         {
           data: dataValues,
-          backgroundColor,
+          backgroundColor: backgroundColors,
           borderColor: borderColors,
           borderWidth: 1,
           hoverOffset: 6,
@@ -117,7 +124,7 @@ function renderSentimentChart(stats) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: "60%", // dona
+      cutout: "60%", // Dona
       plugins: {
         legend: {
           position: "bottom",
@@ -130,7 +137,10 @@ function renderSentimentChart(stats) {
           callbacks: {
             label: (context) => {
               const value = context.raw;
-              const pct = ((value / total) * 100).toFixed(1);
+              if (totalReal === 0) {
+                return `${context.label}: sin datos reales aún`;
+              }
+              const pct = ((value / totalReal) * 100).toFixed(1);
               return `${context.label}: ${value} reseñas (${pct}%)`;
             },
           },
@@ -138,5 +148,6 @@ function renderSentimentChart(stats) {
       },
     },
   });
-}
 
+  console.log("✅ Gráfica de dona creada correctamente");
+}

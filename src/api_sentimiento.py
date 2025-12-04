@@ -379,7 +379,7 @@ def guardar_resena(texto: str, sentimiento: str, probabilidad: float) -> None:
 
         writer.writerow(
             [
-                datetime.utcnow().isoformat(timespec="seconds"),
+                datetime.now().isoformat(timespec="seconds"),
                 texto,
                 sentimiento,
                 f"{probabilidad:.4f}",

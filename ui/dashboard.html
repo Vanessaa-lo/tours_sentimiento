@@ -25,7 +25,12 @@
         <a href="/descargar_resenas" class="btn-export" download>
           ⬇️ Descargar reseñas (CSV)
         </a>
+        <a href="/descargar_resenas_excel" class="btn-export" download>
+          ⬇️ Descargar reseñas (Excel)
+        </a>
+
       </div>
+
 
       <div class="stats-grid">
         <div class="stat-card stat-total">
@@ -57,6 +62,24 @@
       </p>
     </section>
 
+    <!-- FILTROS POR FECHA -->
+    <section class="filters-section">
+      <h2>Filtros</h2>
+      <div class="filters-grid">
+        <label>
+          Desde:
+          <input type="date" id="filtro-desde" />
+        </label>
+        <label>
+          Hasta:
+          <input type="date" id="filtro-hasta" />
+        </label>
+        <button id="btn-aplicar-filtro" class="btn-filter">Aplicar filtro</button>
+        <button id="btn-limpiar-filtro" class="btn-filter-secondary">Quitar filtro</button>
+      </div>
+    </section>
+
+
     <!-- GRÁFICAS -->
     <section class="charts-section">
       <h2>Distribución de sentimientos</h2>
@@ -83,100 +106,173 @@
   </main>
 
   <!-- SCRIPT INLINE DEL DASHBOARD -->
-  <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      console.log("✅ Script inline del dashboard ejecutado");
+    <script>
+    let donutChart = null;
+    let trendChart = null;
+    let totalChart = null;
 
-      // 1) Actualizar tarjetas con /stats
+    document.addEventListener("DOMContentLoaded", () => {
+      // Cargar dashboard completo sin filtros al inicio
+      cargarDashboard();
+
+      // Botón aplicar filtro
+      document.getElementById("btn-aplicar-filtro").addEventListener("click", () => {
+        const desde = document.getElementById("filtro-desde").value;
+        const hasta = document.getElementById("filtro-hasta").value;
+        cargarDashboard(desde, hasta);
+      });
+
+      // Botón quitar filtro
+      document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
+        document.getElementById("filtro-desde").value = "";
+        document.getElementById("filtro-hasta").value = "";
+        cargarDashboard();
+      });
+    });
+
+    async function cargarDashboard(desde = "", hasta = "") {
+      console.log("🔄 Cargando dashboard con rango:", { desde, hasta });
+
+      // ===== 1) Stats (tarjetas) =====
       try {
-        const resp = await fetch("/stats");
-        if (!resp.ok) {
-          console.warn("No se pudo cargar /stats");
+        let urlStats = "/stats";
+        if (desde || hasta) {
+          const params = new URLSearchParams();
+          if (desde) params.append("desde", desde);
+          if (hasta) params.append("hasta", hasta);
+          urlStats = "/stats_rango?" + params.toString();
+        }
+
+        const respStats = await fetch(urlStats);
+        if (respStats.ok) {
+          const stats = await respStats.json();
+          actualizarTarjetas(stats);
         } else {
-          const stats = await resp.json();
-          console.log("📊 Stats recibidos:", stats);
-
-          const elTotal = document.getElementById("stat-total");
-          const elPos = document.getElementById("stat-pos");
-          const elNeu = document.getElementById("stat-neu");
-          const elNeg = document.getElementById("stat-neg");
-
-          const elPosPct = document.getElementById("stat-pos-pct");
-          const elNeuPct = document.getElementById("stat-neu-pct");
-          const elNegPct = document.getElementById("stat-neg-pct");
-
-          const elUpdated = document.getElementById("stats-updated");
-
-          elTotal.textContent = stats.total ?? 0;
-          elPos.textContent = stats.positivos ?? 0;
-          elNeu.textContent = stats.neutrales ?? 0;
-          elNeg.textContent = stats.negativos ?? 0;
-
-          elPosPct.textContent = (stats.porc_positivos ?? 0).toFixed(2) + "%";
-          elNeuPct.textContent = (stats.porc_neutrales ?? 0).toFixed(2) + "%";
-          elNegPct.textContent = (stats.porc_negativos ?? 0).toFixed(2) + "%";
-
-          if (stats.ultima_actualizacion) {
-            const fecha = new Date(stats.ultima_actualizacion).toLocaleString("es-MX", {
-              dateStyle: "short",
-              timeStyle: "short",
-            });
-            elUpdated.textContent = fecha;
-          }
+          console.warn("No se pudieron cargar stats");
         }
       } catch (e) {
-        console.error("❌ Error al pedir /stats:", e);
+        console.error("❌ Error al pedir stats:", e);
       }
 
-      // 2) Gráfica de dona
-      const canvas = document.getElementById("sentimentDonut");
-      if (!canvas) {
-        console.error("❌ No encontré el canvas #sentimentDonut");
-        return;
-      }
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        console.error("❌ No se pudo obtener el contexto 2D del canvas");
-        return;
-      }
-
-      // Usa los valores reales de las tarjetas (por si /stats respondió)
-      const pos = parseInt(document.getElementById("stat-pos").textContent) || 0;
-      const neu = parseInt(document.getElementById("stat-neu").textContent) || 0;
-      const neg = parseInt(document.getElementById("stat-neg").textContent) || 0;
-
-      const dataValuesReal = [pos, neu, neg];
-      const totalReal = dataValuesReal.reduce((a, b) => a + b, 0);
-
-      console.log("📈 Valores para la dona:", dataValuesReal, "total =", totalReal);
-
-      const dataValues = totalReal === 0 ? [1, 1, 1] : dataValuesReal;
-
-      const labels = ["Positivas", "Neutrales", "Negativas"];
-
-      const backgroundColors = [
-        "rgba(74, 222, 128, 0.7)",
-        "rgba(129, 140, 248, 0.7)",
-        "rgba(248, 113, 113, 0.7)",
-      ];
-
-      const borderColors = [
-        "rgba(34, 197, 94, 1)",
-        "rgba(79, 70, 229, 1)",
-        "rgba(239, 68, 68, 1)",
-      ];
-
+      // ===== 2) Series para gráficas =====
+      let series = [];
       try {
-        const donutChart = new Chart(ctx, {
+        let urlSeries = "/stats_series";
+        if (desde || hasta) {
+          const params = new URLSearchParams();
+          if (desde) params.append("desde", desde);
+          if (hasta) params.append("hasta", hasta);
+          urlSeries = "/stats_series_rango?" + params.toString();
+        }
+
+        const respSeries = await fetch(urlSeries);
+        if (respSeries.ok) {
+          series = await respSeries.json();
+        } else {
+          console.warn("No se pudieron cargar stats_series");
+        }
+      } catch (e) {
+        console.error("❌ Error al pedir stats_series:", e);
+      }
+
+      renderGraficas(series);
+    }
+
+    // ===== Actualizar tarjetas resumen =====
+    function actualizarTarjetas(stats) {
+      const elTotal = document.getElementById("stat-total");
+      const elPos = document.getElementById("stat-pos");
+      const elNeu = document.getElementById("stat-neu");
+      const elNeg = document.getElementById("stat-neg");
+
+      const elPosPct = document.getElementById("stat-pos-pct");
+      const elNeuPct = document.getElementById("stat-neu-pct");
+      const elNegPct = document.getElementById("stat-neg-pct");
+
+      const elUpdated = document.getElementById("stats-updated");
+
+      elTotal.textContent = stats.total ?? 0;
+      elPos.textContent = stats.positivos ?? 0;
+      elNeu.textContent = stats.neutrales ?? 0;
+      elNeg.textContent = stats.negativos ?? 0;
+
+      elPosPct.textContent = (stats.porc_positivos ?? 0).toFixed(2) + "%";
+      elNeuPct.textContent = (stats.porc_neutrales ?? 0).toFixed(2) + "%";
+      elNegPct.textContent = (stats.porc_negativos ?? 0).toFixed(2) + "%";
+
+      if (stats.ultima_actualizacion) {
+        const fecha = new Date(stats.ultima_actualizacion).toLocaleString("es-MX", {
+          dateStyle: "short",
+          timeStyle: "short",
+        });
+        elUpdated.textContent = fecha;
+      } else {
+        elUpdated.textContent = "—";
+      }
+    }
+
+    // ===== Crear / actualizar gráficas =====
+    function renderGraficas(series) {
+      // Preparar datos
+      let dias = [];
+      let posPorDia = [];
+      let neuPorDia = [];
+      let negPorDia = [];
+      let totalPorDia = [];
+
+      if (series && series.length > 0) {
+        dias = series.map((punto) => {
+          const [year, month, day] = punto.fecha.split("-").map(Number);
+          const d = new Date(year, month - 1, day);
+          return d.toLocaleDateString("es-MX", {
+            day: "2-digit",
+            month: "short",
+          });
+        });
+
+        posPorDia = series.map((p) => p.positivos);
+        neuPorDia = series.map((p) => p.neutrales);
+        negPorDia = series.map((p) => p.negativos);
+        totalPorDia = series.map((p) => p.total);
+      } else {
+        dias = ["Sin datos"];
+        posPorDia = [0];
+        neuPorDia = [0];
+        negPorDia = [0];
+        totalPorDia = [0];
+      }
+
+      // ===== Gráfica de dona =====
+      const canvasDonut = document.getElementById("sentimentDonut");
+      if (canvasDonut) {
+        const ctx = canvasDonut.getContext("2d");
+
+        // destruimos si ya existe
+        if (donutChart) donutChart.destroy();
+
+        const totalPos = posPorDia.reduce((a, b) => a + b, 0);
+        const totalNeu = neuPorDia.reduce((a, b) => a + b, 0);
+        const totalNeg = negPorDia.reduce((a, b) => a + b, 0);
+        const dataValues = [totalPos, totalNeu, totalNeg];
+        const totalAll = totalPos + totalNeu + totalNeg || 1;
+
+        donutChart = new Chart(ctx, {
           type: "doughnut",
           data: {
-            labels,
+            labels: ["Positivas", "Neutrales", "Negativas"],
             datasets: [
               {
                 data: dataValues,
-                backgroundColor: backgroundColors,
-                borderColor: borderColors,
+                backgroundColor: [
+                  "rgba(74, 222, 128, 0.7)",
+                  "rgba(129, 140, 248, 0.7)",
+                  "rgba(248, 113, 113, 0.7)",
+                ],
+                borderColor: [
+                  "rgba(34, 197, 94, 1)",
+                  "rgba(79, 70, 229, 1)",
+                  "rgba(239, 68, 68, 1)",
+                ],
                 borderWidth: 1,
                 hoverOffset: 6,
               },
@@ -188,65 +284,15 @@
             cutout: "60%",
           },
         });
-
-        console.log("✅ Gráfica de dona creada:", donutChart);
-      } catch (err) {
-        console.error("❌ Error creando la gráfica de dona:", err);
       }
 
-      // ====== 3) Pedir series reales al backend (/stats_series) ======
-      let dias = [];
-      let posPorDia = [];
-      let neuPorDia = [];
-      let negPorDia = [];
-      let totalPorDia = [];
-
-      try {
-        const resp = await fetch("/stats_series");
-        if (!resp.ok) {
-          console.warn("No se pudo cargar /stats_series");
-        } else {
-          const series = await resp.json(); // 🔹 ES UNA LISTA
-
-          console.log("📊 Series reales recibidas:", series);
-
-          // series es un array de objetos { fecha, positivos, neutrales, negativos, total }
-          dias = series.map((punto) => {
-            // punto.fecha = "2025-12-03"
-            const [year, month, day] = punto.fecha.split("-").map(Number);
-            const d = new Date(year, month - 1, day); // 👈 esto crea fecha local
-
-            return d.toLocaleDateString("es-MX", {
-              day: "2-digit",
-              month: "short", // "nov", "dic"
-            });
-          });
-
-          posPorDia   = series.map((punto) => punto.positivos);
-          neuPorDia   = series.map((punto) => punto.neutrales);
-          negPorDia   = series.map((punto) => punto.negativos);
-          totalPorDia = series.map((punto) => punto.total);
-
-        }
-      } catch (e) {
-        console.error("❌ Error al cargar /stats_series:", e);
-      }
-
-      // Si no llegó nada, ponemos un fallback
-      if (dias.length === 0) {
-        dias = ["Sin datos"];
-        posPorDia = [0];
-        neuPorDia = [0];
-        negPorDia = [0];
-        totalPorDia = [0];
-      }
-
-      // ====== 4) Gráfica POS / NEU / NEG (trendChart) ======
+      // ===== Gráfica de líneas POS / NEU / NEG =====
       const trendCanvas = document.getElementById("trendChart");
       if (trendCanvas) {
         const trendCtx = trendCanvas.getContext("2d");
+        if (trendChart) trendChart.destroy();
 
-        new Chart(trendCtx, {
+        trendChart = new Chart(trendCtx, {
           type: "line",
           data: {
             labels: dias,
@@ -280,16 +326,25 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            scales: {
+              x: {
+                ticks: {
+                  maxRotation: 0,
+                  minRotation: 0,
+                },
+              },
+            },
           },
         });
       }
 
-      // ====== 5) Gráfica TOTAL por día (sentimentTrendChart) ======
-      const trend2Canvas = document.getElementById("sentimentTrendChart");
-      if (trend2Canvas) {
-        const trend2Ctx = trend2Canvas.getContext("2d");
+      // ===== Gráfica de barras TOTAL por día =====
+      const totalCanvas = document.getElementById("sentimentTrendChart");
+      if (totalCanvas) {
+        const totalCtx = totalCanvas.getContext("2d");
+        if (totalChart) totalChart.destroy();
 
-        new Chart(trend2Ctx, {
+        totalChart = new Chart(totalCtx, {
           type: "bar",
           data: {
             labels: dias,
@@ -306,8 +361,18 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            scales: {
+              x: {
+                ticks: {
+                  maxRotation: 0,
+                  minRotation: 0,
+                },
+              },
+            },
           },
         });
       }
-    });
+    }
   </script>
+</body>
+</html>

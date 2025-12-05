@@ -18,12 +18,14 @@ from collections import Counter
 from datetime import datetime, date
 import csv
 
-
 import joblib
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+import pandas as pd
+from fastapi.responses import FileResponse
+
 
 # ---------------------------------------------------------------------------
 #  Configuración de rutas
@@ -38,6 +40,7 @@ VEC_PATH = MODELS_DIR / "vectorizador_tfidf.joblib"
 ENCODER_PATH = MODELS_DIR / "label_encoder.joblib"
 
 
+
 # Carpeta para logs / datos generados en producción
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,6 +49,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # Archivo donde se guardarán las reseñas analizadas
 REVIEWS_LOG_PATH = DATA_DIR / "resenas_analizadas.csv"
 RUTA_RESENAS = DATA_DIR / "resenas_analizadas.csv"
+EXCEL_EXPORT_PATH = DATA_DIR / "resenas_tours_pv.xlsx"
+
 
 # ---------------------------------------------------------------------------
 #  Esquemas (Pydantic)
@@ -276,11 +281,9 @@ def obtener_resenas(limit: int = 50) -> List[Resena]:
     summary="Estadísticas globales de reseñas",
 )
 def obtener_stats() -> StatsResponse:
-    """
-    Devuelve estadísticas básicas del sentimiento de las reseñas almacenadas.
-    """
     try:
         return calcular_estadisticas()
+      
     except Exception as exc:
         print(f"[WARN] No se pudieron calcular las estadísticas: {exc}")
         return StatsResponse(
@@ -300,7 +303,6 @@ def obtener_stats() -> StatsResponse:
     summary="Serie temporal de reseñas por día",
 )
 def obtener_stats_series() -> List[StatsSerieDia]:
-    """Devuelve la serie temporal de reseñas agregadas por día."""
     try:
         return calcular_serie_diaria()
     except Exception as exc:
@@ -308,7 +310,10 @@ def obtener_stats_series() -> List[StatsSerieDia]:
         return []
 
         
-def calcular_serie_diaria() -> List[StatsSerieDia]:
+def calcular_serie_diaria(
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+) -> List[StatsSerieDia]:
     """Agrupa las reseñas por día y cuenta sentimientos."""
     if not RUTA_RESENAS.exists():
         return []
@@ -329,6 +334,11 @@ def calcular_serie_diaria() -> List[StatsSerieDia]:
                 continue
 
             dia = ts.date()
+            if fecha_desde and dia < fecha_desde:
+                continue
+            if fecha_hasta and dia > fecha_hasta:
+                continue
+
             sentimiento_norm = sentimiento.strip().lower()
 
             if dia not in datos_por_dia:
@@ -355,6 +365,46 @@ def calcular_serie_diaria() -> List[StatsSerieDia]:
         )
 
     return serie
+
+@app.get(
+    "/stats_rango",
+    response_model=StatsResponse,
+    summary="Estadísticas filtradas por rango de fechas",
+)
+def obtener_stats_rango(
+    desde: date | None = None,
+    hasta: date | None = None,
+) -> StatsResponse:
+    try:
+        return calcular_estadisticas(desde, hasta)
+    except Exception as exc:
+        print(f"[WARN] No se pudieron calcular las estadísticas de rango: {exc}")
+        return StatsResponse(
+            total=0,
+            positivos=0,
+            neutrales=0,
+            negativos=0,
+            porc_positivos=0.0,
+            porc_neutrales=0.0,
+            porc_negativos=0.0,
+            ultima_actualizacion=None,
+        )
+
+
+@app.get(
+    "/stats_series_rango",
+    response_model=List[StatsSerieDia],
+    summary="Serie temporal filtrada por rango de fechas",
+)
+def obtener_stats_series_rango(
+    desde: date | None = None,
+    hasta: date | None = None,
+) -> List[StatsSerieDia]:
+    try:
+        return calcular_serie_diaria(desde, hasta)
+    except Exception as exc:
+        print(f"[WARN] No se pudo calcular la serie diaria de rango: {exc}")
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -421,7 +471,12 @@ def leer_resenas(limit: int = 50) -> List[Resena]:
     resenas.sort(key=lambda r: r.timestamp, reverse=True)
     return resenas[:limit]
 
-def calcular_estadisticas() -> StatsResponse:
+from datetime import datetime, date  # ya lo tienes arriba
+
+def calcular_estadisticas(
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+) -> StatsResponse:
     """Calcula estadísticas simples a partir del CSV de reseñas."""
     if not RUTA_RESENAS.exists():
         return StatsResponse(
@@ -435,8 +490,8 @@ def calcular_estadisticas() -> StatsResponse:
             ultima_actualizacion=None,
         )
 
-    sentimientos = []
-    timestamps = []
+    sentimientos: list[str] = []
+    timestamps: list[datetime] = []
 
     with RUTA_RESENAS.open("r", encoding="utf-8", newline="") as f:
         reader = csv.reader(f)
@@ -449,6 +504,12 @@ def calcular_estadisticas() -> StatsResponse:
             try:
                 ts = datetime.fromisoformat(ts_str)
             except Exception:
+                continue
+
+            dia = ts.date()
+            if fecha_desde and dia < fecha_desde:
+                continue
+            if fecha_hasta and dia > fecha_hasta:
                 continue
 
             sentimientos.append(sentimiento.strip().lower())
@@ -490,8 +551,6 @@ def calcular_estadisticas() -> StatsResponse:
     )
 
 
-from fastapi.responses import FileResponse
-
 @app.get("/dashboard", summary="Dashboard de estadísticas")
 def dashboard():
     dashboard_path = UI_DIR / "dashboard.html"
@@ -511,4 +570,49 @@ def descargar_resenas():
         path=RUTA_RESENAS,
         media_type="text/csv",
         filename="resenas_tours_pv.csv",
+    )
+@app.get("/descargar_resenas_excel", summary="Descargar las reseñas como archivo de Excel")
+def descargar_resenas_excel():
+    """
+    Exporta el CSV de reseñas a un archivo Excel (.xlsx) y lo devuelve.
+    Tolerante a líneas mal formateadas (las ignora).
+    """
+    if not RUTA_RESENAS.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="No hay reseñas registradas aún.",
+        )
+
+    # Leemos el CSV con csv.reader, igual que en leer_resenas()
+    filas = []
+
+    with RUTA_RESENAS.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.reader(f)
+
+        # Intentamos detectar si la primera fila es encabezado
+        header = next(reader, None)
+        if header and len(header) == 4 and header[0].lower() == "timestamp":
+            columnas = header
+        else:
+            columnas = ["timestamp", "texto", "sentimiento", "probabilidad"]
+            # si la primera fila no era encabezado pero está bien formada, la guardamos
+            if header and len(header) == 4:
+                filas.append(header)
+
+        for row in reader:
+            # solo aceptamos filas con 4 columnas, las demás se ignoran
+            if len(row) != 4:
+                continue
+            filas.append(row)
+
+    # Construimos el DataFrame a partir de lo que sí está bien
+    df = pd.DataFrame(filas, columns=columnas)
+
+    # Guardamos a Excel
+    df.to_excel(EXCEL_EXPORT_PATH, index=False)
+
+    return FileResponse(
+        path=EXCEL_EXPORT_PATH,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="resenas_tours_pv.xlsx",
     )

@@ -48,3 +48,17 @@ timestamp,texto,sentimiento,probabilidad
 2025-12-04T17:24:33,estvo bien,neutral,0.5331
 2025-12-04T17:25:31,"muy interesante, vimos ballenas!!!!",positivo,0.7193
 2025-12-04T18:06:05,me gusto demasiado el tour,positivo,0.5088
+2025-12-04T18:54:06,fue divertido el tour,positivo,0.9947
+2025-12-04T18:54:27,los meseros me trataron de manera muy grosera,negativo,0.9426
+2025-12-04T18:54:56,nada destacable del viaje,negativo,0.5727
+2025-12-04T18:55:09,estuvo bien,neutral,0.9950
+2025-12-04T18:55:44,los lugares estaban increibles y nos dierom muchos datos curiosos,positivo,0.6432
+2025-12-04T20:25:46,fue aburrido y los guias no nos hacian caso,positivo,0.9158
+2025-12-04T20:26:17,muy groseros los tripulantes,negativo,0.7495
+2025-12-04T20:30:25,"las vistas eran muy bonitas, me diverti",positivo,0.4441
+2025-12-04T20:36:18,fue aburrido y los guias no nos hacian caso,negativo,0.5568
+2025-12-04T20:36:38,"aburrido, los guias nos ignoraban",negativo,0.6747
+2025-12-04T20:36:56,"aburrido, los guias fueron groseros",negativo,0.5404
+2025-12-04T20:45:14,el yate estaba sucio y encontramos insectos,negativo,0.5955
+2025-12-04T20:45:28,estuvo bien,neutral,0.6516
+2025-12-09T08:15:47,hubo mal clima :(,negativo,0.5195

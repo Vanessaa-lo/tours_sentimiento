@@ -589,23 +589,19 @@ def descargar_resenas_excel():
     with RUTA_RESENAS.open("r", encoding="utf-8", newline="") as f:
         reader = csv.reader(f)
 
-        # Intentamos detectar si la primera fila es encabezado
         header = next(reader, None)
         if header and len(header) == 4 and header[0].lower() == "timestamp":
             columnas = header
         else:
             columnas = ["timestamp", "texto", "sentimiento", "probabilidad"]
-            # si la primera fila no era encabezado pero está bien formada, la guardamos
             if header and len(header) == 4:
                 filas.append(header)
 
         for row in reader:
-            # solo aceptamos filas con 4 columnas, las demás se ignoran
             if len(row) != 4:
                 continue
             filas.append(row)
 
-    # Construimos el DataFrame a partir de lo que sí está bien
     df = pd.DataFrame(filas, columns=columnas)
 
     # Guardamos a Excel
